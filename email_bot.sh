@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+addresses=
 sp_dir=~/Documents/speise_mail
 sp_file=spplan.pdf
 date_file=date.txt
@@ -150,6 +151,6 @@ email_body+="
 
 echo $email_body
 
-msmtp matthias.risze@t-online.de << EOF
+msmtp $addresses << EOF
 ${email_body}
 EOF
