@@ -59,11 +59,11 @@ FR_DIFF=225
 
 ######################
 
-MO_email_attach="" -a ${sp_dir}/MO*
-DI_email_attach="" -a ${sp_dir}/DI*
-MI_email_attach="" -a ${sp_dir}/MI*
-DO_email_attach="" -a ${sp_dir}/DO*
-FR_email_attach="" -a ${sp_dir}/FR*
+MO_email_attach=`ls -a ${sp_dir}/MO*`
+DI_email_attach=`ls -a ${sp_dir}/DI*`
+MI_email_attach=`ls -a ${sp_dir}/MI*`
+DO_email_attach=`ls -a ${sp_dir}/DO*`
+FR_email_attach=`ls -a ${sp_dir}/FR*`
 
 ######################
 
@@ -75,7 +75,7 @@ cd $sp_dir
 
 if [ ! -e $date_file ]; then
 	wget $sp_url -O $sp_file;
-  pdftoppm -f 1 -singlefile -png $sp_file $sp_pic;
+    pdftoppm -f 1 -singlefile -png $sp_file $sp_pic;
 	date +${date_format}>${date_file};
 fi
 
@@ -92,7 +92,7 @@ year_now=`echo ${date_now_var} | cut -d '-' -f 3`; year_now=`expr ${year_now} + 
 if ( ((${month_now}>${month})) || (($(expr ${day_now} - 6) > ${day})) || ((${year_now}>${year})) || true ); then
 	rm *.png;
 	rm ${sp_file};
-	rm ${sp_pic};
+	#rm ${sp_pic};
 	wget ${sp_url} -O ${sp_file};
 	pdftoppm -f 1 -singlefile -png ${sp_file} ${sp_pic};
 	date +${date_format}>${date_file};
@@ -109,7 +109,47 @@ if ( ((${month_now}>${month})) || (($(expr ${day_now} - 6) > ${day})) || ((${yea
 	done
 fi
 
-email_body="Das heutige Essen: (" date %A ", the " date %d ". of " date %B ")"
+email_body="Das heutige Essen: (" date +%A ", the " date +%d ". of " date +%B ")"
+email_body="Mime-Version: 1.0
+Content-Type: multipart/related; boundary=\"boundary-example\"; type=\"text/html\"
 
-#for day in "${days[@]}"; do
-# implement some fancy emailing thingamadoo
+--boundary-example
+Content-Type: text/html; charset=us-ascii
+Content-Disposition: inline
+
+Das heutige Essen (`date +%A`, der `date +%d`. `date +%B`):<br>
+"
+
+for day in "${days[@]}"; do
+    if [ $day == `date +%a | tr '[a-z]' '[A-Z]'` ]; then
+        for dish in `ls ${sp_dir}/${day}*`; do
+            name=`basename ${dish} .png`
+            name=${name:3}
+            email_body+="
+${name}<br>
+<IMG SRC=\"cid:${name}\" ALT=\"${name}\"/><br>
+"
+        done
+        for dish in `ls ${sp_dir}/${day}*`; do
+            name=`basename ${dish} .png`
+            name=${name:3}
+            email_body+="
+--boundary-example
+Content-ID: <${name}>
+Content-Type: image/png
+Content-Transfer-Encoding: base64
+
+`base64 ${dish}`
+"
+        done
+    fi
+done
+
+email_body+="
+--boundary-example--"
+
+echo $email_body
+
+msmtp matthias.risze@t-online.de << EOF
+${email_body}
+EOF
